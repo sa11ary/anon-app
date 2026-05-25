@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anonymous Chat</title>
+    <title>Anonymous Chat App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: var(--tg-theme-bg-color, #ffffff);
             color: var(--tg-theme-text-color, #000000);
             margin: 0;
@@ -23,12 +23,18 @@
         }
         h2 {
             font-size: 20px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             text-align: center;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #888;
+            text-align: center;
+            margin-bottom: 20px;
         }
         textarea {
             width: 100%;
-            height: 120px;
+            height: 150px;
             padding: 12px;
             border: 1px solid #ccc;
             border-radius: 12px;
@@ -52,30 +58,39 @@
             cursor: pointer;
             text-align: center;
         }
-        .btn:active {
-            opacity: 0.8;
-        }
-        .hint {
-            font-size: 13px;
-            color: #888;
-            margin-top: 8px;
-            text-align: center;
-        }
+        .btn:active { opacity: 0.8; }
     </style>
 </head>
 <body>
 
     <div class="chat-container">
-        <h2>🔒 Анонимный чат</h2>
+        <h2 id="mainTitle">🔒 Анонимный чат</h2>
+        <div id="subtitle" class="subtitle">Твой профиль останется скрыт</div>
+        
         <textarea id="msgInput" placeholder="Напиши что-нибудь сюда..."></textarea>
-        <button class="btn" onclick="sendMessage()">Отправить анонимно</button>
-        <div class="hint">Твой профиль и никнейм останутся скрыты</div>
+        <button class="btn" onclick="sendMessage()">Отправить</button>
     </div>
 
     <script>
-        // Инициализируем WebApp Телеграма
+        // ==========================================
+        // НАСТРОЙКИ САЙТА (ОБЯЗАТЕЛЬНО ЗАПОЛНИ)
+        // ==========================================
+        const TOKEN = '8696824591:AAEkMp-xGZMp9LcPlieCvrudF0e2wUB2VRY'; 
+        const MY_ID = 6504410659; // Твой личный цифровой ID
+
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Разворачиваем окно на весь экран телефона
+        tg.expand();
+
+        // Проверяем, передан ли в ссылке ID для ответа (?reply_to=ХХХ)
+        const urlParams = new URLSearchParams(window.location.search);
+        const replyTo = urlParams.get('reply_to');
+
+        // Если сайт открыл админ (ты) для ответа конкретному юзеру
+        if (replyTo) {
+            document.getElementById('mainTitle').innerText = "💬 Ответ пользователю";
+            document.getElementById('subtitle').innerText = "Вы пишете ответ для ID: " + replyTo;
+            document.getElementById('msgInput').placeholder = "Введите текст ответа...";
+        }
 
         function sendMessage() {
             const text = document.getElementById('msgInput').value.trim();
@@ -84,11 +99,39 @@
                 return;
             }
 
-            // Магия: отправляем данные обратно в наш Python-бот
-            tg.sendData(text);
-            
-            // Закрываем мини-приложение после отправки
-            tg.close();
+            let targetChatId;
+            let finalMessageText;
+
+            if (replyTo) {
+                // РЕЖИМ АДМИНА: Отправляем текст напрямую пользователю
+                targetChatId = replyTo;
+                finalMessageText = text;
+            } else {
+                // РЕЖИМ ПОЛЬЗОВАТЕЛЯ: Отправляем сообщение тебе
+                targetChatId = MY_ID;
+                const senderId = tg.initDataUnsafe?.user?.id || "Неизвестно";
+                finalMessageText = `👤 ID: ${senderId}\n📱 [Через App]: ${text}`;
+            }
+
+            // Отправляем данные напрямую через сервера Телеграма
+            fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: targetChatId,
+                    text: finalMessageText
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    tg.close(); // Закрываем приложение, если всё ушло
+                } else {
+                    alert("Ошибка при отправке. Проверьте настройки токена.");
+                }
+            })
+            .catch(err => {
+                alert("Ошибка сети: " + err);
+            });
         }
     </script>
 </body>
