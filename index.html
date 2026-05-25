@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Anonymous Chat & Flappy Bird</title>
+    <title>Anonymous Messenger</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -11,87 +11,143 @@
             background-color: var(--tg-theme-bg-color, #1a1a1a);
             color: var(--tg-theme-text-color, #ffffff);
             margin: 0;
-            padding: 15px;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            height: 100vh;
             overflow: hidden;
-            touch-action: none; /* Запрещаем скролл во время игры */
-        }
-        
-        .container {
-            width: 100%;
-            max-width: 400px;
-            display: none;
-            animation: fadeIn 0.3s ease-out;
-        }
-        .active { display: block; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
         }
 
-        /* --- ИНТЕРФЕЙС ЧАТА --- */
-        h2 { text-align: center; margin-bottom: 5px; }
-        .subtitle { font-size: 14px; color: var(--tg-theme-hint-color, #aaaaaa); text-align: center; margin-bottom: 15px; }
-        
-        textarea {
-            width: 100%; height: 120px; padding: 15px;
-            border: 2px solid transparent; border-radius: 16px; box-sizing: border-box;
-            font-size: 16px; resize: none;
+        /* ШАПКА ЧАТА */
+        .header {
             background-color: var(--tg-theme-secondary-bg-color, #2c2c2c);
-            color: var(--tg-theme-text-color, #ffffff);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        textarea:focus { outline: none; border-color: var(--tg-theme-button-color, #2481cc); }
+        .header-btn {
+            background: none; border: none; font-size: 20px; cursor: pointer; color: var(--tg-theme-button-color, #2481cc);
+        }
 
-        .btn {
-            display: block; width: 100%; padding: 16px; margin-top: 15px;
-            background: var(--tg-theme-button-color, #2481cc);
+        /* КОНТЕЙНЕР ДЛЯ СООБЩЕНИЙ */
+        .chat-box {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* ПУЗЫРЬКИ СООБЩЕНИЙ */
+        .msg {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            animation: popIn 0.2s ease-out;
+        }
+        .msg-out {
+            align-self: flex-end;
+            background-color: var(--tg-theme-button-color, #2481cc);
             color: var(--tg-theme-button-text-color, #ffffff);
-            border: none; border-radius: 16px; font-size: 16px; font-weight: bold;
-            cursor: pointer; transition: transform 0.1s;
+            border-bottom-right-radius: 4px;
         }
-        .btn:active { transform: scale(0.97); }
-        
-        .btn-secondary {
-            background: transparent; border: 2px solid var(--tg-theme-button-color, #2481cc);
-            color: var(--tg-theme-button-color, #2481cc); margin-top: 10px;
+        .msg-info {
+            align-self: center;
+            background-color: var(--tg-theme-secondary-bg-color, #333);
+            color: var(--tg-theme-hint-color, #aaa);
+            font-size: 12px;
+            border-radius: 10px;
+            padding: 5px 10px;
+            text-align: center;
         }
 
-        /* --- ИГРА FLAPPY BIRD --- */
-        #gameArea {
-            display: flex; flex-direction: column; align-items: center; width: 100%;
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.9) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* ПОЛЕ ВВОДА */
+        .input-area {
+            background-color: var(--tg-theme-secondary-bg-color, #2c2c2c);
+            padding: 10px 15px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        textarea {
+            flex-grow: 1;
+            background-color: var(--tg-theme-bg-color, #1a1a1a);
+            color: var(--tg-theme-text-color, #ffffff);
+            border: 1px solid var(--tg-theme-hint-color, #555);
+            border-radius: 20px;
+            padding: 12px 15px;
+            font-size: 16px;
+            resize: none;
+            max-height: 100px;
+            min-height: 24px;
+            outline: none;
+        }
+        .send-btn {
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #fff);
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: transform 0.1s;
+        }
+        .send-btn:active { transform: scale(0.9); }
+
+        /* ИГРА СКОРЫТА ПО УМОЛЧАНИЮ */
+        #gameView {
+            display: none;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--tg-theme-bg-color, #1a1a1a);
+            z-index: 20;
+            flex-direction: column; align-items: center; padding-top: 20px;
         }
         canvas {
-            background: #70c5ce; /* Цвет неба */
-            border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            cursor: pointer;
-            width: 100%;
-            max-width: 320px;
-            height: 400px;
+            background: #70c5ce; border-radius: 12px; width: 90%; max-width: 320px; height: 400px;
         }
     </style>
 </head>
 <body>
 
-    <div id="chatView" class="container active">
-        <h2 id="mainTitle">🔒 Анонимный чат</h2>
-        <div id="subtitle" class="subtitle">Пиши сообщение, я отвечу как смогу</div>
-        <textarea id="msgInput" placeholder="Введи текст сообщения..."></textarea>
-        <button class="btn" onclick="sendMessage()">✈️ Отправить</button>
-        <button class="btn btn-secondary" id="gameBtn" onclick="switchTab('gameView'); startGame();">🎮 Скучно? Сыграй в Flappy Bird!</button>
+    <div class="header" id="chatHeader">
+        <span style="visibility: hidden;">🎮</span> <span id="chatTitle">Анонимный чат 🔒</span>
+        <button class="header-btn" onclick="openGame()" title="Поиграть">🎮</button>
     </div>
 
-    <div id="gameView" class="container">
-        <h2>🐦 Flappy Bird</h2>
-        <div class="subtitle">Тапай по экрану, чтобы лететь</div>
-        <div id="gameArea">
-            <canvas id="gameCanvas" width="320" height="400"></canvas>
+    <div class="chat-box" id="chatBox">
+        <div class="msg-info">Сообщения отправляются анонимно.<br>Ответ придет в этот чат Телеграма.</div>
+    </div>
+
+    <div class="input-area">
+        <textarea id="msgInput" placeholder="Сообщение..." rows="1" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" onclick="sendMessage()">✈️</button>
+    </div>
+
+    <div id="gameView">
+        <div style="width: 90%; max-width: 320px; display: flex; justify-content: space-between; margin-bottom: 10px;">
+            <h2>Flappy Bird</h2>
+            <button class="header-btn" onclick="closeGame()">❌</button>
         </div>
-        <button class="btn btn-secondary" style="margin-top: 20px;" onclick="switchTab('chatView')">🔙 Вернуться в чат</button>
+        <canvas id="gameCanvas" width="320" height="400"></canvas>
     </div>
 
     <script>
@@ -99,7 +155,7 @@
         // НАСТРОЙКИ САЙТА
         // ==========================================
         const TOKEN = '8696824591:AAEkMp-xGZMp9LcPlieCvrudF0e2wUB2VRY'; 
-        const MY_ID = 6504410659; // Твой ID
+        const MY_ID = 6504410659; 
 
         const tg = window.Telegram.WebApp;
         tg.expand();
@@ -108,28 +164,38 @@
         const replyTo = urlParams.get('reply_to');
 
         if (replyTo) {
-            document.getElementById('mainTitle').innerText = "💬 Ответ пользователю";
-            document.getElementById('subtitle').innerText = "ID: " + replyTo;
-            document.getElementById('msgInput').placeholder = "Введите текст ответа...";
-            document.getElementById('gameBtn').style.display = 'none';
+            document.getElementById('chatTitle').innerText = "Ответ юзеру " + replyTo;
         }
 
-        function switchTab(tabId) {
-            document.getElementById('chatView').classList.remove('active');
-            document.getElementById('gameView').classList.remove('active');
-            document.getElementById(tabId).classList.add('active');
+        // Автоизменение высоты поля ввода
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight < 100 ? textarea.scrollHeight : 100) + 'px';
         }
 
-        // ==========================================
+        function appendMessage(text) {
+            const chatBox = document.getElementById('chatBox');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'msg msg-out';
+            msgDiv.innerText = text;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight; // Прокрутка вниз
+        }
+
         // ОТПРАВКА СООБЩЕНИЯ
-        // ==========================================
         function sendMessage() {
-            const text = document.getElementById('msgInput').value.trim();
-            if (!text) return alert("Введите текст");
+            const input = document.getElementById('msgInput');
+            const text = input.value.trim();
+            if (!text) return;
 
-            const btn = document.querySelector('.btn');
-            btn.innerText = "⏳ Отправка...";
+            // Очищаем поле ввода и возвращаем высоту
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Добавляем пузырек в наш интерфейс
+            appendMessage(text);
             
+            // Отправляем в Телеграм
             let targetChatId = replyTo ? replyTo : MY_ID;
             let finalMsg = replyTo ? text : `👤 ID: ${tg.initDataUnsafe?.user?.id || "Неизвестно"}\n📱 [Через App]: ${text}`;
 
@@ -137,66 +203,57 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ chat_id: targetChatId, text: finalMsg })
-            }).then(r => r.ok ? tg.close() : alert("Ошибка!")).catch(() => alert("Ошибка сети"));
+            }).then(r => {
+                if(r.ok && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                // МЫ БОЛЬШЕ НЕ ЗАКРЫВАЕМ ПРИЛОЖЕНИЕ (tg.close() удален)
+            }).catch(e => {
+                const chatBox = document.getElementById('chatBox');
+                chatBox.innerHTML += `<div class="msg-info" style="color: red;">Ошибка отправки сети</div>`;
+            });
         }
 
         // ==========================================
-        // ДВИЖОК FLAPPY BIRD
+        // ЛОГИКА ИГРЫ (ОТКРЫТЬ / ЗАКРЫТЬ)
         // ==========================================
+        function openGame() {
+            document.getElementById('gameView').style.display = 'flex';
+            if (!bird) { resetGame(); gameLoop(); }
+        }
+        function closeGame() {
+            document.getElementById('gameView').style.display = 'none';
+        }
+
+        // ДВИЖОК FLAPPY BIRD (КРАТКИЙ)
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
-        
         let frames = 0, score = 0, best = 0;
-        let bird, pipes, gameState; // 0 = старт, 1 = игра, 2 = проигрыш
+        let bird, pipes, gameState; 
 
         function resetGame() {
             bird = { x: 50, y: 150, width: 20, height: 20, gravity: 0.25, jump: -4.6, speed: 0 };
-            pipes = [];
-            score = 0;
-            frames = 0;
-            gameState = 0; // Ждем клика
+            pipes = []; score = 0; frames = 0; gameState = 0; 
         }
 
         canvas.addEventListener("pointerdown", () => {
-            if (gameState === 0) { gameState = 1; } // Начинаем игру
-            if (gameState === 1) { 
-                bird.speed = bird.jump; 
-                if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); 
-            }
-            if (gameState === 2) { resetGame(); } // Рестарт
+            if (gameState === 0) gameState = 1; 
+            if (gameState === 1) { bird.speed = bird.jump; if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); }
+            if (gameState === 2) resetGame(); 
         });
 
         function updateGame() {
             if (gameState === 1) {
-                bird.speed += bird.gravity;
-                bird.y += bird.speed;
-
-                // Трубы
-                if (frames % 100 === 0) {
-                    let pipeY = Math.random() * (canvas.height - 200) + 50; // дырка
-                    pipes.push({ x: canvas.width, y: pipeY, w: 40, gap: 110 });
-                }
-
+                bird.speed += bird.gravity; bird.y += bird.speed;
+                if (frames % 100 === 0) pipes.push({ x: canvas.width, y: Math.random() * (canvas.height - 200) + 50, w: 40, gap: 110 });
                 for (let i = 0; i < pipes.length; i++) {
-                    let p = pipes[i];
-                    p.x -= 2;
-
-                    // Столкновение
-                    if (bird.x < p.x + p.w && bird.x + bird.width > p.x &&
-                        (bird.y < p.y || bird.y + bird.height > p.y + p.gap)) {
-                        gameState = 2; // Проигрыш
-                        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+                    let p = pipes[i]; p.x -= 2;
+                    if (bird.x < p.x + p.w && bird.x + bird.width > p.x && (bird.y < p.y || bird.y + bird.height > p.y + p.gap)) {
+                        gameState = 2; if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
                     }
-                    
-                    // Очки
                     if (p.x === bird.x) score++;
                 }
-                pipes = pipes.filter(p => p.x + p.w > 0); // Удаляем трубы за экраном
-
-                // Упал на землю
+                pipes = pipes.filter(p => p.x + p.w > 0); 
                 if (bird.y + bird.height >= canvas.height || bird.y < 0) {
-                    gameState = 2;
-                    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+                    gameState = 2; if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
                 }
             }
             if (gameState === 2 && score > best) best = score;
@@ -204,50 +261,20 @@
         }
 
         function drawGame() {
-            ctx.fillStyle = "#70c5ce"; // Небо
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Трубы
-            ctx.fillStyle = "#2ecc71"; // Зеленые трубы
+            ctx.fillStyle = "#70c5ce"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#2ecc71"; 
             for (let i = 0; i < pipes.length; i++) {
-                let p = pipes[i];
-                ctx.fillRect(p.x, 0, p.w, p.y); // Верхняя
-                ctx.fillRect(p.x, p.y + p.gap, p.w, canvas.height - p.y - p.gap); // Нижняя
+                let p = pipes[i]; ctx.fillRect(p.x, 0, p.w, p.y); ctx.fillRect(p.x, p.y + p.gap, p.w, canvas.height - p.y - p.gap);
             }
-
-            // Птичка (желтый квадратик для простоты)
-            ctx.fillStyle = "#f1c40f";
-            ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
-
-            // Очки
-            ctx.fillStyle = "#fff";
-            ctx.font = "35px Arial";
-            ctx.fillText(score, canvas.width / 2 - 10, 50);
-
-            // Тексты состояний
-            if (gameState === 0) {
-                ctx.font = "20px Arial";
-                ctx.fillText("Тапни чтобы начать", 70, canvas.height / 2);
-            } else if (gameState === 2) {
-                ctx.font = "25px Arial";
-                ctx.fillStyle = "red";
-                ctx.fillText("ИГРА ОКОНЧЕНА", 50, canvas.height / 2 - 20);
-                ctx.fillStyle = "#fff";
-                ctx.font = "20px Arial";
-                ctx.fillText("Счет: " + score + " | Лучший: " + best, 60, canvas.height / 2 + 20);
-                ctx.fillText("Тапни для рестарта", 70, canvas.height / 2 + 50);
+            ctx.fillStyle = "#f1c40f"; ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+            ctx.fillStyle = "#fff"; ctx.font = "35px Arial"; ctx.fillText(score, canvas.width / 2 - 10, 50);
+            if (gameState === 0) { ctx.font = "20px Arial"; ctx.fillText("Тапни чтобы начать", 70, canvas.height / 2); } 
+            else if (gameState === 2) {
+                ctx.fillStyle = "red"; ctx.fillText("ОЙ!", 120, canvas.height / 2 - 20);
+                ctx.fillStyle = "#fff"; ctx.font = "20px Arial"; ctx.fillText("Счет: " + score + " | Лучший: " + best, 60, canvas.height / 2 + 20);
             }
         }
-
-        function gameLoop() {
-            updateGame();
-            drawGame();
-            requestAnimationFrame(gameLoop);
-        }
-
-        function startGame() {
-            if (!bird) { resetGame(); gameLoop(); }
-        }
+        function gameLoop() { updateGame(); drawGame(); requestAnimationFrame(gameLoop); }
     </script>
 </body>
 </html>
