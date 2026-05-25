@@ -23,8 +23,12 @@
         .active { display: flex; animation: fadeSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards; }
         
         @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        @keyframes cardDeal { from { opacity: 0; transform: translateY(-80px) rotate(-15deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
+        
+        /* КРАСИВАЯ РАЗДАЧА КАРТ (Вылет из правого верхнего угла) */
+        @keyframes dealCard { 
+            0% { opacity: 0; transform: translate(150px, -150px) rotate(45deg) scale(0.5); } 
+            100% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); } 
+        }
 
         h1, h2 { margin: 10px 0; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         .score-board { font-size: 20px; font-weight: bold; margin-bottom: 10px; transition: color 0.3s; }
@@ -34,9 +38,9 @@
         .game-card {
             background: linear-gradient(145deg, var(--tg-theme-secondary-bg-color, #2c2c2c), #222);
             border-radius: 20px; padding: 25px 10px; text-align: center;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4); cursor: pointer; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2), box-shadow 0.2s;
         }
-        .game-card:active { transform: scale(0.92); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .game-card:active { transform: scale(0.9); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         .game-icon { font-size: 45px; margin-bottom: 10px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
         .game-title { font-size: 16px; font-weight: bold; color: var(--tg-theme-text-color, #fff); }
 
@@ -74,7 +78,8 @@
         }
 
         /* БЛЭКДЖЕК И ЭКОНОМИКА */
-        .bj-bank { font-size: 18px; font-weight: bold; color: #f1c40f; margin-bottom: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .bj-bank { font-size: 18px; font-weight: bold; color: #f1c40f; margin-bottom: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); transition: transform 0.2s; }
+        .bj-bank.pulse { transform: scale(1.1); color: #2ecc71; }
         
         .bj-table { 
             background: radial-gradient(circle, #27ae60, #1e7145); border-radius: 16px; padding: 15px; 
@@ -84,7 +89,9 @@
         .bj-card { 
             width: 65px; height: 90px; background: #fff; border-radius: 8px; display: flex; flex-direction: column; 
             justify-content: center; align-items: center; font-size: 24px; font-weight: bold; color: #000;
-            box-shadow: -3px 3px 10px rgba(0,0,0,0.4); margin: 0 4px; animation: cardDeal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+            box-shadow: -3px 3px 10px rgba(0,0,0,0.4); margin: 0 4px; 
+            /* backwards позволяет картам быть невидимыми до начала анимации */
+            animation: dealCard 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2) backwards;
         }
         .bj-card.red { color: #e74c3c; }
         .bj-card.hidden { background: #2980b9; color: transparent; background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.1) 10px, rgba(0,0,0,0.1) 20px); }
@@ -97,13 +104,14 @@
             flex: 1; background: #34495e; color: #fff; border: none; padding: 10px 0; border-radius: 8px; 
             font-weight: bold; font-size: 14px; cursor: pointer; transition: transform 0.1s, background 0.2s; 
         }
-        .chip:active { transform: scale(0.9); }
+        .chip:active { transform: scale(0.85); background: #2c3e50; }
         .chip.c-clear { background: #e74c3c; }
+        .chip.c-clear:active { background: #c0392b; }
         
         .bj-controls { display: flex; gap: 10px; margin-top: 15px; width: 90%; max-width: 350px; justify-content: center; }
         .btn-bj { flex: 1; background: #34495e; color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.1s, opacity 0.3s; }
         .btn-bj:active:not(:disabled) { transform: scale(0.95); }
-        .btn-bj:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-bj:disabled { opacity: 0.4; cursor: not-allowed; transform: scale(1); }
         .btn-bj.deal { background: var(--tg-theme-button-color, #2481cc); box-shadow: 0 4px 10px rgba(36, 129, 204, 0.4); }
 
         /* УПРАВЛЕНИЕ ЗМЕЙКОЙ */
@@ -193,13 +201,22 @@
 
         let activeInterval = null;
         let activeAnimFrame = null;
-        let soncoins = 1000; // Глобальный баланс валюты
+        let soncoins = 1000; 
 
         function updateGlobalBank() {
-            document.getElementById('menu-bank').innerText = `Сонькоины: ${soncoins} 💰`;
-            document.getElementById('bj-bank-display').innerHTML = `💰 Баланс: ${soncoins} Сонькоинов`;
+            const menuBank = document.getElementById('menu-bank');
+            const bjBank = document.getElementById('bj-bank-display');
+            
+            menuBank.innerText = `Сонькоины: ${soncoins} 💰`;
+            bjBank.innerHTML = `💰 Баланс: ${soncoins} Сонькоинов`;
+            
+            // Анимация пополнения баланса
+            menuBank.classList.remove('pulse'); bjBank.classList.remove('pulse');
+            void menuBank.offsetWidth; // Хак для перезапуска CSS анимации
+            menuBank.classList.add('pulse'); bjBank.classList.add('pulse');
+
             if (soncoins === 0 && currentBet === 0) {
-                document.getElementById('bj-bank-display').innerHTML = `Вы банкрот! <button style="background:#f1c40f; border:none; padding:5px 10px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="soncoins=500; updateGlobalBank();">Взять 500</button>`;
+                bjBank.innerHTML = `Вы банкрот! <button style="background:#f1c40f; border:none; padding:5px 10px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="soncoins=500; updateGlobalBank();">Взять 500</button>`;
             }
         }
 
@@ -215,14 +232,14 @@
         function closeGame() {
             clearInterval(activeInterval);
             cancelAnimationFrame(activeAnimFrame);
-            if(currentBet > 0 && !bjGameOver) { soncoins += currentBet; currentBet = 0; } // Возврат ставки при выходе
+            if(currentBet > 0 && !bjGameOver) { soncoins += currentBet; currentBet = 0; } 
             updateGlobalBank();
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('menu').classList.add('active');
         }
 
         // ==========================================
-        // FLAPPY BIRD & SNAKE (Оставлены без изменений для краткости)
+        // FLAPPY BIRD 
         // ==========================================
         let fCtx, fBird, fPipes, fFrames, fScore, fState; 
         function initFlappy() { const cvs = document.getElementById("flapCanvas"); fCtx = cvs.getContext("2d"); fBird = { x: 50, y: 150, v: 0, g: 0.35, jump: -6 }; fPipes = []; fFrames = 0; fScore = 0; fState = 0; document.getElementById('flapScore').innerText = 0; cancelAnimationFrame(activeAnimFrame); flapLoop(); }
@@ -247,16 +264,40 @@
             fCtx.textAlign = "left"; activeAnimFrame = requestAnimationFrame(flapLoop);
         }
 
+        // ==========================================
+        // ЗМЕЙКА (ИСПРАВЛЕНА ОШИБКА fCtx)
+        // ==========================================
         let sCtx, sSnake, sFood, sDx, sDy, sScore, sState; 
-        function initSnake() { const cvs = document.getElementById("snakeCanvas"); sCtx = cvs.getContext("2d"); sSnake = [{x: 7, y: 7}]; sDx = 1; sDy = 0; sScore = 0; sState = 0; sFood = {x: 10, y: 10}; document.getElementById('snakeScore').innerText = 0; clearInterval(activeInterval); activeInterval = setInterval(snakeLoop, 150); drawSnake(); }
+        function initSnake() { 
+            const cvs = document.getElementById("snakeCanvas"); 
+            sCtx = cvs.getContext("2d"); 
+            sSnake = [{x: 7, y: 7}]; sDx = 1; sDy = 0; sScore = 0; sState = 0; sFood = {x: 10, y: 10}; 
+            document.getElementById('snakeScore').innerText = 0; 
+            clearInterval(activeInterval); 
+            activeInterval = setInterval(snakeLoop, 150); 
+            drawSnake(); 
+        }
         function startSnake() { if (sState === 0) { sState = 1; spawnFood(); } else if (sState === 2) initSnake(); }
         function changeDir(x, y) { if (sState === 0) startSnake(); if (sDx === -x && sDy === -y) return; sDx = x; sDy = y; }
         function spawnFood() { sFood = {x: Math.floor(Math.random()*15), y: Math.floor(Math.random()*15)}; }
+        
         function drawSnake() {
-            sCtx.fillStyle = "#111"; sCtx.fillRect(0,0,300,300); sCtx.fillStyle = "red"; sCtx.fillRect(sFood.x*20, sFood.y*20, 18, 18); sCtx.fillStyle = "lime"; sSnake.forEach(s => sCtx.fillRect(s.x*20, s.y*20, 18, 18));
+            sCtx.fillStyle = "#111"; sCtx.fillRect(0,0,300,300); 
+            sCtx.fillStyle = "red"; sCtx.fillRect(sFood.x*20, sFood.y*20, 18, 18); 
+            sCtx.fillStyle = "lime"; sSnake.forEach(s => sCtx.fillRect(s.x*20, s.y*20, 18, 18));
+            
             sCtx.fillStyle = "#fff"; sCtx.font = "24px Arial"; sCtx.textAlign = "center";
-            if (sState === 0) { sCtx.fillStyle = "rgba(0,0,0,0.6)"; sCtx.fillRect(0,0,300,300); fCtx.fillStyle = "#fff"; sCtx.fillText("НАЧАТЬ ИГРУ", 150, 150); } 
-            else if (sState === 2) { sCtx.fillStyle = "rgba(255,0,0,0.5)"; sCtx.fillRect(0,0,300,300); fCtx.fillStyle = "#fff"; sCtx.fillText("ПРОИГРЫШ", 150, 150); }
+            if (sState === 0) { 
+                sCtx.fillStyle = "rgba(0,0,0,0.6)"; sCtx.fillRect(0,0,300,300); 
+                sCtx.fillStyle = "#ffffff"; // ИСПРАВЛЕНА ОШИБКА
+                sCtx.fillText("НАЧАТЬ ИГРУ", 150, 150); 
+            } 
+            else if (sState === 2) { 
+                sCtx.fillStyle = "rgba(255,0,0,0.5)"; sCtx.fillRect(0,0,300,300); 
+                sCtx.fillStyle = "#ffffff"; // ИСПРАВЛЕНА ОШИБКА
+                sCtx.fillText("ПРОИГРЫШ", 150, 140); 
+                sCtx.font = "16px Arial"; sCtx.fillText("Тапни для рестарта", 150, 170); 
+            }
             sCtx.textAlign = "left";
         }
         function snakeLoop() {
@@ -296,22 +337,18 @@
                 grid.appendChild(wrapper);
             });
         }
-
         function startMemory() {
             let overlay = document.getElementById('memStartOverlay');
             overlay.style.opacity = '0';
             setTimeout(() => { overlay.style.display = 'none'; }, 300);
         }
-
         function flipCard(card) {
             if(mFlipped.length >= 2 || card.classList.contains('flipped') || card.classList.contains('matched')) return;
             card.classList.add('flipped'); mFlipped.push(card);
-            
             if(mFlipped.length === 2) {
                 mScore++; document.getElementById('memScore').innerText = mScore;
                 if(mFlipped[0].dataset.icon === mFlipped[1].dataset.icon) {
-                    mFlipped.forEach(c => c.classList.add('matched'));
-                    mMatches++; mFlipped = [];
+                    mFlipped.forEach(c => c.classList.add('matched')); mMatches++; mFlipped = [];
                     if(mMatches === 8) setTimeout(() => alert(`Победа! Ходов: ${mScore}`), 600);
                 } else {
                     setTimeout(() => { mFlipped.forEach(c => c.classList.remove('flipped')); mFlipped = []; }, 800);
@@ -336,6 +373,10 @@
             document.getElementById('bj-status').innerText = 'Сделайте ставку';
             document.getElementById('bj-status').style.color = '#fff';
             
+            // ИСПРАВЛЕНИЕ: ЖЕСТКО разблокируем кнопки при старте новой игры
+            document.getElementById('bj-btn-hit').disabled = false;
+            document.getElementById('bj-btn-stand').disabled = false;
+            
             currentBet = 0;
             document.getElementById('bj-current-bet').innerText = currentBet;
             updateGlobalBank();
@@ -343,21 +384,16 @@
             bjGameOver = true;
         }
 
-        // --- ЛОГИКА СТАВОК ---
         function placeBet(amount) {
-            if (amount === 'all') {
-                if (soncoins > 0) { currentBet += soncoins; soncoins = 0; }
-            } else {
-                if (soncoins >= amount) { currentBet += amount; soncoins -= amount; }
-            }
+            if (amount === 'all') { if (soncoins > 0) { currentBet += soncoins; soncoins = 0; } } 
+            else { if (soncoins >= amount) { currentBet += amount; soncoins -= amount; } }
             document.getElementById('bj-current-bet').innerText = currentBet;
             updateGlobalBank();
             document.getElementById('bj-btn-deal').disabled = (currentBet === 0);
         }
 
         function clearBet() {
-            soncoins += currentBet;
-            currentBet = 0;
+            soncoins += currentBet; currentBet = 0;
             document.getElementById('bj-current-bet').innerText = currentBet;
             updateGlobalBank();
             document.getElementById('bj-btn-deal').disabled = true;
@@ -371,14 +407,11 @@
             if(allow) document.getElementById('bj-btn-deal').disabled = (currentBet === 0);
         }
 
-        // --- ДВИЖОК БЛЭКДЖЕКА ---
         function bjBuildDeck() {
             let deck = [];
             for(let s of suits) {
                 for(let v of values) {
-                    let weight = parseInt(v);
-                    if(['J','Q','K'].includes(v)) weight = 10;
-                    if(v === 'A') weight = 11;
+                    let weight = parseInt(v); if(['J','Q','K'].includes(v)) weight = 10; if(v === 'A') weight = 11;
                     deck.push({suit: s, val: v, weight: weight, red: (s==='♥'||s==='♦')});
                 }
             }
@@ -393,9 +426,10 @@
         }
 
         function bjRenderCard(card, hidden = false, delayIndex = 0) {
-            if(hidden) return `<div class="bj-card hidden" style="animation-delay: ${delayIndex * 0.1}s">?</div>`;
+            let animDelay = `animation-delay: ${delayIndex * 0.1}s;`;
+            if(hidden) return `<div class="bj-card hidden" style="${animDelay}">?</div>`;
             const colorClass = card.red ? 'red' : '';
-            return `<div class="bj-card ${colorClass}" style="animation-delay: ${delayIndex * 0.1}s">
+            return `<div class="bj-card ${colorClass}" style="${animDelay}">
                         <span style="font-size:14px; align-self:flex-start; margin-left:5px;">${card.val}</span>
                         <span style="font-size:30px;">${card.suit}</span>
                     </div>`;
@@ -404,8 +438,6 @@
         function bjUpdateUI(showDealer = false, startDealing = false) {
             let pScore = bjCalcScore(bjPlayer);
             document.getElementById('bj-player-score').innerText = `Твои очки: ${pScore}`;
-            
-            // Если мы только раздаем, добавляем задержки для красивого вылета карт
             document.getElementById('bj-player-hand').innerHTML = bjPlayer.map((c, i) => bjRenderCard(c, false, startDealing ? i : 0)).join('');
 
             let dHTML = '';
@@ -413,6 +445,7 @@
                 dHTML = bjRenderCard(bjDealer[0], false, startDealing ? 0 : 0) + bjRenderCard(bjDealer[1], true, startDealing ? 1 : 0);
                 document.getElementById('bj-dealer-score').innerText = `Дилер: ?`;
             } else if (bjDealer.length > 0) {
+                // Когда дилер открывает карту, делаем анимацию только для новых карт
                 dHTML = bjDealer.map((c, i) => bjRenderCard(c, false, startDealing ? i : 0)).join('');
                 document.getElementById('bj-dealer-score').innerText = `Дилер: ${bjCalcScore(bjDealer)}`;
             }
@@ -423,9 +456,12 @@
             bjGameOver = true;
             document.getElementById('bj-status').innerText = msg;
             document.getElementById('bj-status').style.color = color;
-            bjUpdateUI(true);
+            bjUpdateUI(true); // Показываем карты дилера
             
-            // Логика выплат Сонькоинов
+            // ИСПРАВЛЕНИЕ: Блокируем кнопки, чтобы не нажимать "ЕЩЕ" после конца
+            document.getElementById('bj-btn-hit').disabled = true;
+            document.getElementById('bj-btn-stand').disabled = true;
+            
             if (result === 'bj') soncoins += Math.floor(currentBet * 2.5);
             else if (result === 'win') soncoins += currentBet * 2;
             else if (result === 'push') soncoins += currentBet;
@@ -433,16 +469,17 @@
             currentBet = 0;
             updateGlobalBank();
 
-            // Возвращаем кнопку начала новой игры через 2 секунды
-            setTimeout(() => {
-                initBlackjack();
-            }, 2500);
+            setTimeout(() => { initBlackjack(); }, 3000);
         }
 
         function bjDeal() {
             if(currentBet === 0) return;
-            bjDeck = bjBuildDeck(); bjPlayer = []; bjDealer = [];
             
+            // ИСПРАВЛЕНИЕ: Точно разблокируем кнопки при раздаче
+            document.getElementById('bj-btn-hit').disabled = false;
+            document.getElementById('bj-btn-stand').disabled = false;
+            
+            bjDeck = bjBuildDeck(); bjPlayer = []; bjDealer = [];
             bjPlayer.push(bjDeck.pop(), bjDeck.pop());
             bjDealer.push(bjDeck.pop(), bjDeck.pop());
             
@@ -450,12 +487,14 @@
             document.getElementById('bj-status').innerText = 'Твой ход. ЕЩЕ или ХВАТИТ?';
             document.getElementById('bj-status').style.color = '#fff';
             
-            bjEnableBetting(false); // Прячем фишки, показываем кнопки игры
-            bjUpdateUI(false, true); // True для анимации раздачи
+            bjEnableBetting(false); 
+            bjUpdateUI(false, true); 
 
-            // Проверка на Блэкджек с раздачи
             if(bjCalcScore(bjPlayer) === 21) {
-                setTimeout(() => bjEndGame("Блэкджек! Выигрыш x2.5", "#f1c40f", "bj"), 800);
+                // Если Блэкджек сразу
+                document.getElementById('bj-btn-hit').disabled = true;
+                document.getElementById('bj-btn-stand').disabled = true;
+                setTimeout(() => bjEndGame("Блэкджек! Выигрыш x2.5", "#f1c40f", "bj"), 1000);
             }
         }
 
@@ -470,13 +509,14 @@
             if(bjGameOver) return;
             bjUpdateUI(true);
             
+            // Блокируем кнопки, пока дилер берет карты
             document.getElementById('bj-btn-hit').disabled = true;
             document.getElementById('bj-btn-stand').disabled = true;
 
             function dealerTurn() {
                 if(bjCalcScore(bjDealer) < 17) {
                     bjDealer.push(bjDeck.pop());
-                    bjUpdateUI(true);
+                    bjUpdateUI(true, true); // true для анимации новой карты
                     setTimeout(dealerTurn, 600);
                 } else {
                     let pScore = bjCalcScore(bjPlayer);
