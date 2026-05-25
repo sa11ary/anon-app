@@ -3,278 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Anonymous Messenger</title>
+    <title>Telegram Arcade</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        /* БАЗОВЫЕ НАСТРОЙКИ */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: var(--tg-theme-bg-color, #1a1a1a);
             color: var(--tg-theme-text-color, #ffffff);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center;
+            height: 100vh; overflow: hidden; touch-action: none; user-select: none;
+        }
+        
+        .screen {
+            width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; padding-top: 20px;
+            animation: fadeIn 0.3s ease-out; box-sizing: border-box;
+        }
+        .active { display: flex; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+        h1, h2 { margin: 10px 0; text-align: center; }
+        
+        /* КНОПКИ И МЕНЮ */
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 90%; max-width: 400px; margin-top: 20px; }
+        .game-card {
+            background: var(--tg-theme-secondary-bg-color, #2c2c2c);
+            border-radius: 16px; padding: 20px 10px; text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.1s;
+        }
+        .game-card:active { transform: scale(0.95); }
+        .game-icon { font-size: 40px; margin-bottom: 10px; }
+        .game-title { font-size: 16px; font-weight: bold; color: var(--tg-theme-text-color, #fff); }
+
+        .btn-back {
+            background: var(--tg-theme-button-color, #2481cc); color: #fff;
+            border: none; border-radius: 12px; padding: 12px 20px; font-size: 16px;
+            margin-top: 15px; cursor: pointer; width: 90%; max-width: 300px;
         }
 
-        /* ШАПКА ЧАТА */
-        .header {
-            background-color: var(--tg-theme-secondary-bg-color, #2c2c2c);
-            padding: 15px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 18px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 10;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header-btn {
-            background: none; border: none; font-size: 20px; cursor: pointer; color: var(--tg-theme-button-color, #2481cc);
-        }
+        /* ИГРОВЫЕ ЗОНЫ */
+        canvas { background: #000; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .score-board { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
 
-        /* КОНТЕЙНЕР ДЛЯ СООБЩЕНИЙ */
-        .chat-box {
-            flex-grow: 1;
-            padding: 15px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+        /* УПРАВЛЕНИЕ ЗМЕЙКОЙ */
+        .d-pad { display: grid; grid-template-columns: 60px 60px 60px; gap: 5px; margin-top: 15px; justify-content: center; }
+        .d-btn { background: #333; border: none; border-radius: 10px; height: 60px; font-size: 24px; color: #fff; }
+        .d-btn:active { background: #555; }
+        .d-up { grid-column: 2; } .d-left { grid-column: 1; } .d-right { grid-column: 3; } .d-down { grid-column: 2; }
 
-        /* ПУЗЫРЬКИ СООБЩЕНИЙ */
-        .msg {
-            max-width: 80%;
-            padding: 10px 15px;
-            border-radius: 18px;
-            font-size: 15px;
-            line-height: 1.4;
-            word-wrap: break-word;
-            animation: popIn 0.2s ease-out;
+        /* ПАМЯТЬ (КАРТОЧКИ) */
+        .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 90%; max-width: 320px; }
+        .card {
+            background: var(--tg-theme-button-color, #2481cc); height: 70px; border-radius: 10px;
+            display: flex; justify-content: center; align-items: center; font-size: 30px; cursor: pointer;
+            transition: transform 0.2s;
         }
-        .msg-out {
-            align-self: flex-end;
-            background-color: var(--tg-theme-button-color, #2481cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border-bottom-right-radius: 4px;
-        }
-        .msg-info {
-            align-self: center;
-            background-color: var(--tg-theme-secondary-bg-color, #333);
-            color: var(--tg-theme-hint-color, #aaa);
-            font-size: 12px;
-            border-radius: 10px;
-            padding: 5px 10px;
-            text-align: center;
-        }
+        .card.flipped { background: #fff; transform: rotateY(180deg); }
+        .card.matched { background: #2ecc71; opacity: 0.8; }
 
-        @keyframes popIn {
-            from { opacity: 0; transform: scale(0.9) translateY(10px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
+        /* КЛИКЕР */
+        .coin-btn {
+            font-size: 100px; background: none; border: none; margin-top: 50px; cursor: pointer; transition: transform 0.05s;
         }
-
-        /* ПОЛЕ ВВОДА */
-        .input-area {
-            background-color: var(--tg-theme-secondary-bg-color, #2c2c2c);
-            padding: 10px 15px;
-            display: flex;
-            gap: 10px;
-            align-items: flex-end;
-        }
-        textarea {
-            flex-grow: 1;
-            background-color: var(--tg-theme-bg-color, #1a1a1a);
-            color: var(--tg-theme-text-color, #ffffff);
-            border: 1px solid var(--tg-theme-hint-color, #555);
-            border-radius: 20px;
-            padding: 12px 15px;
-            font-size: 16px;
-            resize: none;
-            max-height: 100px;
-            min-height: 24px;
-            outline: none;
-        }
-        .send-btn {
-            background-color: var(--tg-theme-button-color, #2481cc);
-            color: var(--tg-theme-button-text-color, #fff);
-            border: none;
-            border-radius: 50%;
-            width: 45px;
-            height: 45px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 20px;
-            cursor: pointer;
-            flex-shrink: 0;
-            transition: transform 0.1s;
-        }
-        .send-btn:active { transform: scale(0.9); }
-
-        /* ИГРА СКОРЫТА ПО УМОЛЧАНИЮ */
-        #gameView {
-            display: none;
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: var(--tg-theme-bg-color, #1a1a1a);
-            z-index: 20;
-            flex-direction: column; align-items: center; padding-top: 20px;
-        }
-        canvas {
-            background: #70c5ce; border-radius: 12px; width: 90%; max-width: 320px; height: 400px;
-        }
+        .coin-btn:active { transform: scale(0.85); }
     </style>
 </head>
 <body>
 
-    <div class="header" id="chatHeader">
-        <span style="visibility: hidden;">🎮</span> <span id="chatTitle">Анонимный чат 🔒</span>
-        <button class="header-btn" onclick="openGame()" title="Поиграть">🎮</button>
-    </div>
-
-    <div class="chat-box" id="chatBox">
-        <div class="msg-info">Сообщения отправляются анонимно.<br>Ответ придет в этот чат Телеграма.</div>
-    </div>
-
-    <div class="input-area">
-        <textarea id="msgInput" placeholder="Сообщение..." rows="1" oninput="autoResize(this)"></textarea>
-        <button class="send-btn" onclick="sendMessage()">✈️</button>
-    </div>
-
-    <div id="gameView">
-        <div style="width: 90%; max-width: 320px; display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <h2>Flappy Bird</h2>
-            <button class="header-btn" onclick="closeGame()">❌</button>
+    <div id="menu" class="screen active">
+        <h1>🕹️ Игровой Зал</h1>
+        <p>Выбери игру, чтобы убить время</p>
+        <div class="menu-grid">
+            <div class="game-card" onclick="openGame('flappy')"><div class="game-icon">🐦</div><div class="game-title">Flappy Bird</div></div>
+            <div class="game-card" onclick="openGame('snake')"><div class="game-icon">🐍</div><div class="game-title">Змейка</div></div>
+            <div class="game-card" onclick="openGame('memory')"><div class="game-icon">🃏</div><div class="game-title">Найди пару</div></div>
+            <div class="game-card" onclick="openGame('clicker')"><div class="game-icon">💰</div><div class="game-title">Тапалка</div></div>
         </div>
-        <canvas id="gameCanvas" width="320" height="400"></canvas>
+    </div>
+
+    <div id="flappy" class="screen">
+        <h2>Flappy Bird</h2>
+        <div class="score-board">Счет: <span id="flapScore">0</span></div>
+        <canvas id="flapCanvas" width="300" height="400" onclick="flapJump()"></canvas>
+        <button class="btn-back" onclick="closeGame()">🔙 В меню</button>
+    </div>
+
+    <div id="snake" class="screen">
+        <h2>Змейка</h2>
+        <div class="score-board">Счет: <span id="snakeScore">0</span></div>
+        <canvas id="snakeCanvas" width="300" height="300"></canvas>
+        <div class="d-pad">
+            <button class="d-btn d-up" onclick="changeDir(0, -1)">⬆️</button>
+            <button class="d-btn d-left" onclick="changeDir(-1, 0)">⬅️</button>
+            <button class="d-btn d-right" onclick="changeDir(1, 0)">➡️</button>
+            <button class="d-btn d-down" onclick="changeDir(0, 1)">⬇️</button>
+        </div>
+        <button class="btn-back" onclick="closeGame()">🔙 В меню</button>
+    </div>
+
+    <div id="memory" class="screen">
+        <h2>Найди пару</h2>
+        <div class="score-board">Ходов: <span id="memScore">0</span></div>
+        <div class="memory-grid" id="memGrid"></div>
+        <button class="btn-back" onclick="closeGame()">🔙 В меню</button>
+    </div>
+
+    <div id="clicker" class="screen">
+        <h2>Тапалка</h2>
+        <div class="score-board" style="font-size: 30px; margin-top: 20px;">Монет: <span id="clickScore">0</span></div>
+        <button class="coin-btn" onclick="addCoin()">🪙</button>
+        <button class="btn-back" style="margin-top: auto; margin-bottom: 30px;" onclick="closeGame()">🔙 В меню</button>
     </div>
 
     <script>
-        // ==========================================
-        // НАСТРОЙКИ САЙТА
-        // ==========================================
-        const TOKEN = '8696824591:AAEkMp-xGZMp9LcPlieCvrudF0e2wUB2VRY'; 
-        const MY_ID = 6504410659; 
-
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const replyTo = urlParams.get('reply_to');
+        let activeLoop = null; // Для остановки анимаций
 
-        if (replyTo) {
-            document.getElementById('chatTitle').innerText = "Ответ юзеру " + replyTo;
-        }
-
-        // Автоизменение высоты поля ввода
-        function autoResize(textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = (textarea.scrollHeight < 100 ? textarea.scrollHeight : 100) + 'px';
-        }
-
-        function appendMessage(text) {
-            const chatBox = document.getElementById('chatBox');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'msg msg-out';
-            msgDiv.innerText = text;
-            chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight; // Прокрутка вниз
-        }
-
-        // ОТПРАВКА СООБЩЕНИЯ
-        function sendMessage() {
-            const input = document.getElementById('msgInput');
-            const text = input.value.trim();
-            if (!text) return;
-
-            // Очищаем поле ввода и возвращаем высоту
-            input.value = '';
-            input.style.height = 'auto';
-
-            // Добавляем пузырек в наш интерфейс
-            appendMessage(text);
-            
-            // Отправляем в Телеграм
-            let targetChatId = replyTo ? replyTo : MY_ID;
-            let finalMsg = replyTo ? text : `👤 ID: ${tg.initDataUnsafe?.user?.id || "Неизвестно"}\n📱 [Через App]: ${text}`;
-
-            fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: targetChatId, text: finalMsg })
-            }).then(r => {
-                if(r.ok && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-                // МЫ БОЛЬШЕ НЕ ЗАКРЫВАЕМ ПРИЛОЖЕНИЕ (tg.close() удален)
-            }).catch(e => {
-                const chatBox = document.getElementById('chatBox');
-                chatBox.innerHTML += `<div class="msg-info" style="color: red;">Ошибка отправки сети</div>`;
-            });
-        }
-
-        // ==========================================
-        // ЛОГИКА ИГРЫ (ОТКРЫТЬ / ЗАКРЫТЬ)
-        // ==========================================
-        function openGame() {
-            document.getElementById('gameView').style.display = 'flex';
-            if (!bird) { resetGame(); gameLoop(); }
+        // НАВИГАЦИЯ
+        function openGame(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'flappy') initFlappy();
+            if(id === 'snake') initSnake();
+            if(id === 'memory') initMemory();
         }
         function closeGame() {
-            document.getElementById('gameView').style.display = 'none';
+            cancelAnimationFrame(activeLoop);
+            clearInterval(activeLoop);
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('menu').classList.add('active');
         }
+        function vibe() { if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); }
+        function vibeError() { if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error'); }
 
-        // ДВИЖОК FLAPPY BIRD (КРАТКИЙ)
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        let frames = 0, score = 0, best = 0;
-        let bird, pipes, gameState; 
-
-        function resetGame() {
-            bird = { x: 50, y: 150, width: 20, height: 20, gravity: 0.25, jump: -4.6, speed: 0 };
-            pipes = []; score = 0; frames = 0; gameState = 0; 
+        // --- FLAPPY BIRD ---
+        let fCtx, fBird, fPipes, fFrames, fScore;
+        function initFlappy() {
+            const cvs = document.getElementById("flapCanvas");
+            fCtx = cvs.getContext("2d");
+            fBird = { x: 50, y: 150, v: 0, g: 0.3, jump: -5 };
+            fPipes = []; fFrames = 0; fScore = 0;
+            document.getElementById('flapScore').innerText = 0;
+            cancelAnimationFrame(activeLoop);
+            flapLoop();
         }
+        function flapJump() { fBird.v = fBird.jump; vibe(); }
+        function flapLoop() {
+            fBird.v += fBird.g; fBird.y += fBird.v;
+            if(fFrames % 100 === 0) fPipes.push({x: 300, y: Math.random() * -200, w: 40, gap: 120});
+            
+            fCtx.fillStyle = "#70c5ce"; fCtx.fillRect(0,0,300,400); // Фон
+            fCtx.fillStyle = "#f1c40f"; fCtx.fillRect(fBird.x, fBird.y, 20, 20); // Птица
+            
+            fCtx.fillStyle = "#2ecc71";
+            for(let i=0; i<fPipes.length; i++) {
+                let p = fPipes[i]; p.x -= 2;
+                fCtx.fillRect(p.x, p.y, p.w, 300); // Верхняя (очень длинная, скрыта верхом)
+                fCtx.fillRect(p.x, p.y + 300 + p.gap, p.w, 400); // Нижняя
+                
+                if(p.x === fBird.x) { fScore++; document.getElementById('flapScore').innerText = fScore; }
+                // Столкновение
+                if(fBird.x < p.x+p.w && fBird.x+20 > p.x && (fBird.y < p.y+300 || fBird.y+20 > p.y+300+p.gap)) return fDie();
+            }
+            if(fBird.y > 400 || fBird.y < 0) return fDie();
+            fPipes = fPipes.filter(p => p.x > -40);
+            fFrames++;
+            activeLoop = requestAnimationFrame(flapLoop);
+        }
+        function fDie() { vibeError(); setTimeout(initFlappy, 1000); }
 
-        canvas.addEventListener("pointerdown", () => {
-            if (gameState === 0) gameState = 1; 
-            if (gameState === 1) { bird.speed = bird.jump; if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); }
-            if (gameState === 2) resetGame(); 
-        });
+        // --- ЗМЕЙКА ---
+        let sCtx, sSnake, sFood, sDx, sDy, sScore;
+        function initSnake() {
+            const cvs = document.getElementById("snakeCanvas");
+            sCtx = cvs.getContext("2d");
+            sSnake = [{x: 10, y: 10}]; sDx = 1; sDy = 0; sScore = 0;
+            spawnFood();
+            document.getElementById('snakeScore').innerText = 0;
+            clearInterval(activeLoop);
+            activeLoop = setInterval(snakeLoop, 150);
+        }
+        function spawnFood() { sFood = {x: Math.floor(Math.random()*15), y: Math.floor(Math.random()*15)}; }
+        function changeDir(x, y) { if(sDx === -x && sDy === -y) return; sDx = x; sDy = y; vibe(); }
+        function snakeLoop() {
+            let head = {x: sSnake[0].x + sDx, y: sSnake[0].y + sDy};
+            // Столкновение со стеной или собой
+            if(head.x < 0 || head.x >= 15 || head.y < 0 || head.y >= 15 || sSnake.some(s => s.x===head.x && s.y===head.y)) return sDie();
+            
+            sSnake.unshift(head);
+            if(head.x === sFood.x && head.y === sFood.y) {
+                sScore += 10; document.getElementById('snakeScore').innerText = sScore; spawnFood(); vibe();
+            } else { sSnake.pop(); }
 
-        function updateGame() {
-            if (gameState === 1) {
-                bird.speed += bird.gravity; bird.y += bird.speed;
-                if (frames % 100 === 0) pipes.push({ x: canvas.width, y: Math.random() * (canvas.height - 200) + 50, w: 40, gap: 110 });
-                for (let i = 0; i < pipes.length; i++) {
-                    let p = pipes[i]; p.x -= 2;
-                    if (bird.x < p.x + p.w && bird.x + bird.width > p.x && (bird.y < p.y || bird.y + bird.height > p.y + p.gap)) {
-                        gameState = 2; if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
-                    }
-                    if (p.x === bird.x) score++;
+            sCtx.fillStyle = "#111"; sCtx.fillRect(0,0,300,300);
+            sCtx.fillStyle = "red"; sCtx.fillRect(sFood.x*20, sFood.y*20, 18, 18);
+            sCtx.fillStyle = "lime"; sSnake.forEach(s => sCtx.fillRect(s.x*20, s.y*20, 18, 18));
+        }
+        function sDie() { vibeError(); clearInterval(activeLoop); setTimeout(initSnake, 1000); }
+
+        // --- ПАМЯТЬ ---
+        const icons = ['🍎','🍌','🍉','🍇','🍓','🥑','🥕','🌽'];
+        let mCards = [], mFlipped = [], mScore = 0, mMatches = 0;
+        function initMemory() {
+            let deck = [...icons, ...icons].sort(() => Math.random() - 0.5);
+            const grid = document.getElementById('memGrid');
+            grid.innerHTML = ''; mScore = 0; mMatches = 0; mFlipped = [];
+            document.getElementById('memScore').innerText = 0;
+            
+            deck.forEach((icon, i) => {
+                let card = document.createElement('div');
+                card.className = 'card'; card.dataset.icon = icon; card.dataset.index = i;
+                card.onclick = () => flipCard(card);
+                grid.appendChild(card);
+            });
+        }
+        function flipCard(card) {
+            if(mFlipped.length >= 2 || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+            card.classList.add('flipped'); card.innerText = card.dataset.icon; mFlipped.push(card); vibe();
+            
+            if(mFlipped.length === 2) {
+                mScore++; document.getElementById('memScore').innerText = mScore;
+                if(mFlipped[0].dataset.icon === mFlipped[1].dataset.icon) {
+                    mFlipped.forEach(c => { c.classList.add('matched'); c.style.background = '#2ecc71'; });
+                    mMatches++; mFlipped = [];
+                    if(mMatches === 8) { vibe(); setTimeout(() => alert(`Победа! Ходов: ${mScore}`), 500); }
+                } else {
+                    setTimeout(() => { mFlipped.forEach(c => { c.classList.remove('flipped'); c.innerText = ''; }); mFlipped = []; }, 800);
                 }
-                pipes = pipes.filter(p => p.x + p.w > 0); 
-                if (bird.y + bird.height >= canvas.height || bird.y < 0) {
-                    gameState = 2; if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
-                }
             }
-            if (gameState === 2 && score > best) best = score;
-            frames++;
         }
 
-        function drawGame() {
-            ctx.fillStyle = "#70c5ce"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#2ecc71"; 
-            for (let i = 0; i < pipes.length; i++) {
-                let p = pipes[i]; ctx.fillRect(p.x, 0, p.w, p.y); ctx.fillRect(p.x, p.y + p.gap, p.w, canvas.height - p.y - p.gap);
-            }
-            ctx.fillStyle = "#f1c40f"; ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
-            ctx.fillStyle = "#fff"; ctx.font = "35px Arial"; ctx.fillText(score, canvas.width / 2 - 10, 50);
-            if (gameState === 0) { ctx.font = "20px Arial"; ctx.fillText("Тапни чтобы начать", 70, canvas.height / 2); } 
-            else if (gameState === 2) {
-                ctx.fillStyle = "red"; ctx.fillText("ОЙ!", 120, canvas.height / 2 - 20);
-                ctx.fillStyle = "#fff"; ctx.font = "20px Arial"; ctx.fillText("Счет: " + score + " | Лучший: " + best, 60, canvas.height / 2 + 20);
-            }
+        // --- ТАПАЛКА ---
+        let cScore = 0;
+        function addCoin() {
+            cScore++; document.getElementById('clickScore').innerText = cScore; vibe();
         }
-        function gameLoop() { updateGame(); drawGame(); requestAnimationFrame(gameLoop); }
     </script>
 </body>
 </html>
